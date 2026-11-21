@@ -1105,24 +1105,31 @@ function pickImage(list, min) {
             }
         }, 300);
 
+        var startedAt = Date.now();
+        var everPlayed = false;
+
         progress_timer = setInterval(function () {
             var videoEl = document.querySelector('video');
             var opened = window.Lampa && Lampa.Player && typeof Lampa.Player.opened === 'function' ? Lampa.Player.opened() : false;
 
             if (!opened && !videoEl) {
-                stopProgressMonitor();
+                if (everPlayed || Date.now() - startedAt > 20000) stopProgressMonitor();
                 return;
             }
 
             if (videoEl) {
-                if (progress_ctx) progress_ctx.el = videoEl;
-                trySeek(videoEl);
-
                 var cur = videoEl.currentTime;
                 var dur = (videoEl.duration && isFinite(videoEl.duration)) ? videoEl.duration : (video.duration || 0);
+                var isPreroll = video.duration > 30 && videoEl.duration && isFinite(videoEl.duration) && videoEl.duration < 25;
 
-                if (cur > 0 && dur > 0) {
-                    saveProgress(key, cur, dur);
+                if (!isPreroll) {
+                    if (progress_ctx) progress_ctx.el = videoEl;
+                    trySeek(videoEl);
+
+                    if (cur > 0 && dur > 0) {
+                        everPlayed = true;
+                        saveProgress(key, cur, dur);
+                    }
                 }
             }
         }, 4000);
