@@ -8,11 +8,19 @@
 
 ### ✨ Возможности
 
-- 🔥 **Прямая работа с VK Видео** без сторонних серверов
-- ♾️ **Бесконечный динамический скролл** во всех разделах и поиске
+- 🔥 **Прямая работа с VK Видео** без сторонних серверов и быстрая загрузка токена на Android TV
+- ♾️ **Бесконечный динамический скролл** во всех разделах и поиске с дедупликацией карточек (без повторов)
 - 🎚️ **Выбор качества (`144p–4K / HLS`)** прямо в плеере + резервный поток
 - ⏱️ **Точные таймкоды продолжения просмотра** и бейджи `%` на карточках
 - ⚡ **20-минутный кэш потоков** и троттлинг запросов API
+
+---
+
+### 🎥 Поддерживаемые плееры
+
+- 📱 **Внешний Android-плеер (Vimu и др.)** — аппаратный нативный HLS / MP4 (включая запуск из «Истории просмотра»)
+- 📺 **Встроенный плеер Lampa** — автоматический приоритет прямого MP4 без CORS-ошибок + выбор качества
+- 🌐 **Плеер VK (страница видео)** — встроенный плеер VK с описанием, лайками и комментариями
 
 ---
 
@@ -22,7 +30,7 @@
   `https://raw.githack.com/Sophiedevops/lampa-vkvideo-plugin/main/vkvideo.js`
 
 * **Вариант 2 (Statically CDN — резервный прокси):**
-  `https://cdn.statically.io/gh/Sophiedevops/lampa-vkvideo-plugin/main/vkvideo.js` (или `https://cdn.staticaly.com/gh/Sophiedevops/lampa-vkvideo-plugin/main/vkvideo.js`)
+  `https://cdn.statically.io/gh/Sophiedevops/lampa-vkvideo-plugin@main/vkvideo.js`
 
 * **Вариант 3 (Прямая нормализованная ссылка GitHub):**
   `https://raw.githubusercontent.com/Sophiedevops/lampa-vkvideo-plugin/main/vkvideo.js`
