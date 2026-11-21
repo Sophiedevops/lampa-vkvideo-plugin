@@ -317,66 +317,82 @@
             }
         }
 
-        function tryDirect() {
-            // На Android TV (APK) доступен нативный системный клиент без ограничений CORS
-            if (window.Android && window.Android.httpReq) {
-                window.Android.httpReq({url: directUrl, timeout: 7000}, {
-                    complite: function (res) {
-                        var data = parse(res);
+        function finish() {
+            if (old) return flush(null, old);
+            flush(new Error('VK Video недоступен'));
+        }
 
-                        if (data && data.response && data.response.token) {
-                            return saveAndFlush(data.response.token, data.response.expired_at);
-                        }
-                        tryFallback();
-                    },
-                    error: function () {
-                        tryFallback();
-                    }
-                });
-                return;
-            }
-
-            // Прямой XHR (работает на webOS / Tizen / packaged apps)
+        function xhrStep(url, direct, next) {
             var xhr = new XMLHttpRequest();
 
-            xhr.open('GET', directUrl);
-            xhr.timeout = 7000;
+            xhr.open('GET', url);
+            xhr.timeout = 4000;
             xhr.onload = function () {
                 var data = parse(xhr.responseText);
 
-                if (data && data.response && data.response.token) {
-                    return saveAndFlush(data.response.token, data.response.expired_at);
-                }
-                tryFallback();
+                if (direct) data = data && data.response;
+                if (data && data.token) return saveAndFlush(data.token, data.expired_at);
+                next();
             };
             xhr.onerror = xhr.ontimeout = function () {
-                tryFallback();
+                next();
             };
             xhr.send();
         }
 
-        function tryFallback() {
-            var xhr2 = new XMLHttpRequest();
+        function viaAndroid(next) {
+            var fired = false;
+            var timer;
 
-            xhr2.open('GET', fallbackUrl);
-            xhr2.timeout = 7000;
-            xhr2.onload = function () {
-                var data = parse(xhr2.responseText);
+            function step(data) {
+                if (fired) return;
+                fired = true;
+                clearTimeout(timer);
 
-                if (data && data.token) {
-                    return saveAndFlush(data.token, data.expired_at);
-                }
-                if (old) return flush(null, old);
-                flush(new Error('Не удалось получить токен VK Video'));
-            };
-            xhr2.onerror = xhr2.ontimeout = function () {
-                if (old) return flush(null, old);
-                flush(new Error('VK Video недоступен'));
-            };
-            xhr2.send();
+                data = data && data.response;
+                if (data && data.token) return saveAndFlush(data.token, data.expired_at);
+                next();
+            }
+
+            timer = setTimeout(function () {
+                step(null);
+            }, 4500);
+
+            try {
+                window.Android.httpReq({url: directUrl, timeout: 4000}, {
+                    complite: function (res) {
+                        step(parse(res));
+                    },
+                    error: function () {
+                        step(null);
+                    }
+                });
+            } catch (e) {
+                step(null);
+            }
         }
 
-        tryDirect();
+        function viaFallback(next) {
+            xhrStep(fallbackUrl, false, next);
+        }
+
+        function viaDirect(next) {
+            xhrStep(directUrl, true, next);
+        }
+
+        var steps = [];
+        var androidWV = location.protocol === 'http:' && /Android/i.test(navigator.userAgent);
+
+        if (window.Android && window.Android.httpReq) steps.push(viaAndroid);
+        steps.push(viaFallback);
+        if (!androidWV) steps.push(viaDirect);
+
+        (function run() {
+            var s = steps.shift();
+
+            if (!s) return finish();
+            s(run);
+        })();
     }
 
     // Проверка кодов ошибок устаревания или недействительности токена
@@ -595,6 +611,18 @@ function pickImage(list, min) {
         });
     }
 
+    function dedupe(cards, seen) {
+        var out = [];
+
+        cards.forEach(function (c) {
+            if (!c || seen[c.id]) return;
+            seen[c.id] = 1;
+            out.push(c);
+        });
+
+        return out;
+    }
+
     function toLine(title, cards, more) {
         return cards.length ? {title: title, results: cards, total_pages: more ? 2 : 1, more: more} : null;
     }
@@ -631,7 +659,7 @@ function pickImage(list, min) {
     }
 
     function addHistory(video) {
-        Lampa.Favorite.add('history', {id: video.id, source: HISTORY_SOURCE, title: video.title, img: video.img, background_image: video.background}, 100);
+        Lampa.Favorite.add('history', {id: video.owner_id !== undefined && String(video.id).indexOf('_') < 0 ? video.owner_id + '_' + (video.video_id || video.id) : video.id, source: HISTORY_SOURCE, title: video.title, img: video.img, background_image: video.background, owner_id: video.owner_id, video_id: video.video_id || video.id}, 100);
 
         historyCards().slice(HISTORY_SIZE).forEach(function (card) {
             Lampa.Favorite.remove('history', card);
@@ -785,19 +813,43 @@ function pickImage(list, min) {
         });
     }
 
-    function getStreamUrl(files, quality) {
+    var MP4_ORDER = [2160, 1440, 1080, 720, 480, 360, 240, 144];
+
+    // Лучший MP4 не выше maxQ (или ближайший доступный); maxQ=0 -> самый высокий
+    function pickMp4(files, maxQ) {
+        var i, q;
+
+        for (i = 0; i < MP4_ORDER.length; i++) {
+            q = MP4_ORDER[i];
+            if ((!maxQ || q <= maxQ) && files['mp4_' + q]) return files['mp4_' + q];
+        }
+
+        for (i = MP4_ORDER.length - 1; i >= 0; i--) {
+            if (files['mp4_' + MP4_ORDER[i]]) return files['mp4_' + MP4_ORDER[i]];
+        }
+
+        return '';
+    }
+
+    function getStreamUrl(files, quality, preferMp4) {
         if (!files) return '';
-        if (quality === '2160' && files.mp4_2160) return files.mp4_2160;
-        if (quality === '1440' && files.mp4_1440) return files.mp4_1440;
-        if (quality === '1080' && files.mp4_1080) return files.mp4_1080;
-        if (quality === '720' && files.mp4_720) return files.mp4_720;
-        if (quality === '480' && files.mp4_480) return files.mp4_480;
-        if (quality === '360' && files.mp4_360) return files.mp4_360;
+
+        var num = parseInt(quality, 10);
+
+        if (num > 0) {
+            var exact = pickMp4(files, num);
+
+            if (exact) return exact;
+        } else if (preferMp4) {
+            var best = pickMp4(files, 0);
+
+            if (best) return best;
+        }
 
         return files.hls || files.mp4_2160 || files.mp4_1440 || files.mp4_1080 || files.mp4_720 || files.mp4_480 || files.mp4_360 || files.mp4_240 || files.mp4_144 || '';
     }
 
-    function buildQualityData(files, prefQuality) {
+    function buildQualityData(files, prefQuality, preferMp4) {
         var qualityMap = {};
         var candidates = [];
 
@@ -828,7 +880,7 @@ function pickImage(list, min) {
             }
         });
 
-        var primaryUrl = getStreamUrl(files, prefQuality);
+        var primaryUrl = getStreamUrl(files, prefQuality, preferMp4);
         var reserveUrl = '';
 
         for (var i = 0; i < candidates.length; i++) {
@@ -967,6 +1019,27 @@ function pickImage(list, min) {
         return 0;
     }
 
+    var progress_ctx = null;
+
+    function flushProgress() {
+        var ctx = progress_ctx;
+
+        if (!ctx || !ctx.el) return;
+
+        try {
+            var cur = ctx.el.currentTime;
+            var dur = (ctx.el.duration && isFinite(ctx.el.duration)) ? ctx.el.duration : (ctx.video.duration || 0);
+
+            if (cur > 0 && dur > 0) saveProgress(ctx.key, cur, dur);
+        } catch (e) {}
+    }
+
+    function onPlayerDestroy() {
+        flushProgress();
+        stopProgressMonitor();
+        progress_ctx = null;
+    }
+
     function stopProgressMonitor() {
         if (progress_timer) {
             clearInterval(progress_timer);
@@ -978,7 +1051,7 @@ function pickImage(list, min) {
         if (player_listener_bound) return;
 
         if (window.Lampa && Lampa.Player && Lampa.Player.listener && Lampa.Player.listener.follow) {
-            Lampa.Player.listener.follow('destroy', stopProgressMonitor);
+            Lampa.Player.listener.follow('destroy', onPlayerDestroy);
             player_listener_bound = true;
         }
     }
@@ -992,6 +1065,8 @@ function pickImage(list, min) {
         var key = getVideoKey(video);
 
         if (!key) return;
+
+        progress_ctx = {key: key, video: video, el: null};
 
         var seekDone = !(resumeSec > 0);
         var boundEl = null;
@@ -1022,7 +1097,12 @@ function pickImage(list, min) {
         }
 
         setTimeout(function () {
-            if (progress_timer) trySeek(document.querySelector('video'));
+            if (progress_timer) {
+                var firstEl = document.querySelector('video');
+
+                if (firstEl && progress_ctx) progress_ctx.el = firstEl;
+                trySeek(firstEl);
+            }
         }, 300);
 
         progress_timer = setInterval(function () {
@@ -1035,6 +1115,7 @@ function pickImage(list, min) {
             }
 
             if (videoEl) {
+                if (progress_ctx) progress_ctx.el = videoEl;
                 trySeek(videoEl);
 
                 var cur = videoEl.currentTime;
@@ -1053,7 +1134,8 @@ function pickImage(list, min) {
 
         resolveVideoFiles(video, function (err, files, resolvedVideo) {
             var target = resolvedVideo || video;
-            var qData = buildQualityData(files, quality);
+            var preferMp4 = !target.live && !video.live && Lampa.Storage.get('player', 'inner') === 'inner';
+            var qData = files ? buildQualityData(files, quality, preferMp4) : {};
 
             if (qData.url && window.Lampa && Lampa.Player) {
                 addHistory(target);
@@ -1084,6 +1166,8 @@ function pickImage(list, min) {
                 Lampa.Player.play(playData);
                 startProgressMonitor(target, resumeSec);
             } else {
+                if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show('VK Видео: прямой поток недоступен, открыт VK-плеер');
+
                 Lampa.Activity.push({component: 'vkvideo_video', title: video.title, oid: video.owner_id, vid: vid, video: video, url: '', page: 1});
             }
         });
@@ -1316,7 +1400,9 @@ function openMore(more, title) {
         var cursor = null;
         var currentPage = object.page || 1;
         var loading = false;
-        var MAX_EMPTY_HOPS = 3;
+        var MAX_EMPTY_HOPS = 5;
+        var seenIds = {};
+        var seenCursors = {};
 
         object.params = {items: {cols: 4}};
 
@@ -1359,7 +1445,8 @@ function openMore(more, title) {
 
                 var nextCursor = (blocks[0] && blocks[0].next_from) || (cursorBlock && cursorBlock.next_from) || (section && section.next_from) || null;
 
-                if (nextCursor && nextCursor === cursor) nextCursor = null;
+                if (nextCursor && (nextCursor === cursor || seenCursors[nextCursor])) nextCursor = null;
+                if (nextCursor) seenCursors[nextCursor] = 1;
                 cursor = nextCursor;
 
                 var ids = [];
@@ -1368,6 +1455,8 @@ function openMore(more, title) {
                 });
 
                 toCards(ids.length ? ids : null, res, function (chunkCards) {
+                    chunkCards = dedupe(chunkCards || [], seenIds);
+
                     if (!chunkCards || !chunkCards.length) {
                         if (cursor && emptyHops < MAX_EMPTY_HOPS) {
                             return loadChunk(done, fail, emptyHops + 1);
@@ -1424,7 +1513,9 @@ function openMore(more, title) {
         var cursor = null;
         var currentPage = object.page || 1;
         var loading = false;
-        var MAX_EMPTY_HOPS = 3;
+        var MAX_EMPTY_HOPS = 5;
+        var seenIds = {};
+        var seenCursors = {};
 
         object.params = {items: {cols: 4}};
 
@@ -1454,10 +1545,13 @@ function openMore(more, title) {
 
                     var nextCursor = firstSec.next_from || (firstSec.blocks && firstSec.blocks[0] && firstSec.blocks[0].next_from) || null;
 
-                    if (nextCursor && nextCursor === cursor) nextCursor = null;
+                    if (nextCursor && (nextCursor === cursor || seenCursors[nextCursor])) nextCursor = null;
+                if (nextCursor) seenCursors[nextCursor] = 1;
                     cursor = nextCursor;
 
                     toCards(null, res, function (chunkCards) {
+                    chunkCards = dedupe(chunkCards || [], seenIds);
+
                         if (!chunkCards || !chunkCards.length) {
                             if (cursor && emptyHops < MAX_EMPTY_HOPS) {
                                 return loadSearchChunk(done, fail, emptyHops + 1);
@@ -1505,10 +1599,13 @@ function openMore(more, title) {
 
                     var nextCursor = (section && section.next_from) || (blocks[0] && blocks[0].next_from) || (cursorBlock && cursorBlock.next_from) || null;
 
-                    if (nextCursor && nextCursor === cursor) nextCursor = null;
+                    if (nextCursor && (nextCursor === cursor || seenCursors[nextCursor])) nextCursor = null;
+                if (nextCursor) seenCursors[nextCursor] = 1;
                     cursor = nextCursor;
 
                     toCards(null, sRes, function (chunkCards) {
+                    chunkCards = dedupe(chunkCards || [], seenIds);
+
                         if (!chunkCards || !chunkCards.length) {
                             if (cursor && emptyHops < MAX_EMPTY_HOPS) {
                                 return loadSearchChunk(done, fail, emptyHops + 1);
@@ -1660,8 +1757,7 @@ function openMore(more, title) {
         if (video.player) {
             this.frame = document.createElement('iframe');
             this.frame.src = video.player + (video.player.indexOf('?') < 0 ? '?' : '&') + EMBED_PARAMS;
-            this.frame.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock');
-            this.frame.setAttribute('allowfullscreen', '');
+            this.frame.setAttribute('allow', 'autoplay; fullscreen; encrypted-media');
             this.body.querySelector('.vkvideo-watch__player').appendChild(this.frame);
         }
 
@@ -1972,7 +2068,7 @@ function routeHistory() {
 
             var ids = String(data.id).split('_');
 
-            Lampa.Activity.push({component: 'vkvideo_video', title: data.title, oid: ids[0], vid: ids[1], url: '', page: 1});
+            openVideo({id: ids[1], video_id: ids[1], owner_id: ids[0], title: data.title, img: data.img});
         };
     }
 
