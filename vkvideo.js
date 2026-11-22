@@ -138,6 +138,7 @@
     var api_last_ts = 0;
     var resolve_cache = {};
     var progress_timer = null;
+    var play_lock_until = 0;
     var player_listener_bound = false;
 
     var LANG = {
@@ -1263,6 +1264,7 @@ function pickImage(list, min) {
         flushProgress();
         stopProgressMonitor();
         progress_ctx = null;
+        play_lock_until = 0;
     }
 
     function stopProgressMonitor() {
@@ -1279,6 +1281,12 @@ function pickImage(list, min) {
             Lampa.Player.listener.follow('destroy', onPlayerDestroy);
             player_listener_bound = true;
         }
+    }
+
+    function isPrerollVideo(el, video) {
+        if (!el) return true;
+        if (video && video.duration > 30 && el.duration && isFinite(el.duration) && el.duration < 25) return true;
+        return false;
     }
 
     function startProgressMonitor(video, resumeSec) {
@@ -1321,15 +1329,6 @@ function pickImage(list, min) {
             }
         }
 
-        setTimeout(function () {
-            if (progress_timer) {
-                var firstEl = document.querySelector('video');
-
-                if (firstEl && progress_ctx) progress_ctx.el = firstEl;
-                trySeek(firstEl);
-            }
-        }, 300);
-
         var startedAt = Date.now();
         var everPlayed = false;
 
@@ -1342,22 +1341,19 @@ function pickImage(list, min) {
                 return;
             }
 
-            if (videoEl) {
+            if (videoEl && videoEl.readyState >= 1 && !isPrerollVideo(videoEl, video)) {
+                if (progress_ctx) progress_ctx.el = videoEl;
+                trySeek(videoEl);
+
                 var cur = videoEl.currentTime;
                 var dur = (videoEl.duration && isFinite(videoEl.duration)) ? videoEl.duration : (video.duration || 0);
-                var isPreroll = video.duration > 30 && videoEl.duration && isFinite(videoEl.duration) && videoEl.duration < 25;
 
-                if (!isPreroll) {
-                    if (progress_ctx) progress_ctx.el = videoEl;
-                    trySeek(videoEl);
-
-                    if (cur > 0 && dur > 0) {
-                        everPlayed = true;
-                        saveProgress(key, cur, dur);
-                    }
+                if (cur > 0 && dur > 0) {
+                    everPlayed = true;
+                    saveProgress(key, cur, dur);
                 }
             }
-        }, 4000);
+        }, 2500);
     }
 
     function getLampaPlayer() {
@@ -1365,6 +1361,9 @@ function pickImage(list, min) {
     }
 
     function playDirect(video) {
+        if (Date.now() < play_lock_until) return;
+        play_lock_until = Date.now() + 5000;
+
         var quality = String(Lampa.Storage.get('vkvideo_quality', 'auto') || 'auto').replace(/^q/, '');
         var vid = video.video_id || video.id;
 
@@ -1403,8 +1402,14 @@ function pickImage(list, min) {
                 console.log('[VKVideo] playDirect lampa_player=' + lampaPlayer + ' preferMp4=' + preferMp4 + ' quality=' + quality + ' urlType=' + (/\.m3u8/i.test(qData.url) ? 'hls' : 'mp4') + ' reserve=' + (qData.reserveUrl ? (/\.m3u8/i.test(qData.reserveUrl) ? 'hls' : 'mp4') : 'none'));
 
                 Lampa.Player.play(playData);
-                startProgressMonitor(target, resumeSec);
+
+                if (lampaPlayer === 'inner') {
+                    startProgressMonitor(target, resumeSec);
+                } else {
+                    stopProgressMonitor();
+                }
             } else {
+                play_lock_until = 0;
                 if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(tr('vkvideo_direct_unavailable', 'VK Видео: прямой поток недоступен, открыт VK-плеер'));
 
                 Lampa.Activity.push({component: 'vkvideo_video', title: video.title, oid: video.owner_id, vid: vid, video: video, url: '', page: 1});
