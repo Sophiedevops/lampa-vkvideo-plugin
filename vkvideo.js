@@ -322,6 +322,12 @@
             en: 'VK Video: direct stream unavailable, opening VK player',
             be: 'VK Відэа: прамы паток недаступны, адкрыты VK-плэер'
         },
+        vkvideo_direct_unavailable_tv: {
+            ru: 'VK Видео: прямой поток недоступен для этого видео',
+            uk: 'VK Відео: прямий потік недоступний для цього відео',
+            en: 'VK Video: direct stream unavailable for this video',
+            be: 'VK Відэа: прамы паток недаступны для гэтага відэа'
+        },
         vkvideo_no_connection: {
             ru: 'Нет связи с VK',
             uk: 'Немає зв’язку з VK',
@@ -1360,6 +1366,19 @@ function pickImage(list, min) {
         return (window.Lampa && Lampa.Storage && typeof Lampa.Storage.field === 'function') ? String(Lampa.Storage.field('player') || 'inner') : String(Lampa.Storage.get('player', 'inner') || 'inner');
     }
 
+    function isTvOrAndroid() {
+        if (window.Android) return true;
+        if (window.Lampa && Lampa.Platform) {
+            if (typeof Lampa.Platform.tv === 'function' && Lampa.Platform.tv()) return true;
+            if (typeof Lampa.Platform.is === 'function' && (
+                Lampa.Platform.is('android') || Lampa.Platform.is('tizen') ||
+                Lampa.Platform.is('webos') || Lampa.Platform.is('orsay') ||
+                Lampa.Platform.is('netcast') || Lampa.Platform.is('apple_tv')
+            )) return true;
+        }
+        return /Android|SmartTV|SMART-TV|Tizen|Web0S/i.test(navigator.userAgent || '');
+    }
+
     function playDirect(video) {
         if (Date.now() < play_lock_until) return;
         play_lock_until = Date.now() + 5000;
@@ -1410,9 +1429,15 @@ function pickImage(list, min) {
                 }
             } else {
                 play_lock_until = 0;
+
+                if (isTvOrAndroid()) {
+                    if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(tr('vkvideo_direct_unavailable_tv', 'VK Видео: прямой поток недоступен для этого видео'));
+                    return;
+                }
+
                 if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(tr('vkvideo_direct_unavailable', 'VK Видео: прямой поток недоступен, открыт VK-плеер'));
 
-                Lampa.Activity.push({component: 'vkvideo_video', title: video.title, oid: video.owner_id, vid: vid, video: video, url: '', page: 1});
+                Lampa.Activity.push({component: 'vkvideo_video', title: video.title, oid: video.owner_id, vid: vid, video: (target && (target.player || hasPlayableFiles(target.files))) ? target : null, url: '', page: 1});
             }
         });
     }
@@ -1925,7 +1950,7 @@ function openMore(more, title) {
         this.scroll.minus();
         this.html.appendChild(this.scroll.render(true));
 
-        if (this.video) this.build();
+        if (this.video && (this.video.player || hasPlayableFiles(this.video.files))) this.build();
         else this.restore();
     };
 
