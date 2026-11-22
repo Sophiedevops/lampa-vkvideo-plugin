@@ -140,6 +140,229 @@
     var progress_timer = null;
     var player_listener_bound = false;
 
+    var LANG = {
+        vkvideo_title: {
+            ru: 'VK Видео',
+            uk: 'VK Відео',
+            en: 'VK Video',
+            be: 'VK Відэа'
+        },
+        vkvideo_player_mode_name: {
+            ru: 'Плеер для VK Видео',
+            uk: 'Плеєр для VK Відео',
+            en: 'VK Video Player',
+            be: 'Плэер для VK Відэа'
+        },
+        vkvideo_mode_direct: {
+            ru: 'Плеер Lampa (из Настройки → Плеер)',
+            uk: 'Плеєр Lampa (з Налаштування → Плеєр)',
+            en: 'Lampa Player (from Settings → Player)',
+            be: 'Плэер Lampa (з Налады → Плэер)'
+        },
+        vkvideo_mode_watch: {
+            ru: 'Плеер VK (страница с описанием)',
+            uk: 'Плеєр VK (сторінка з описом)',
+            en: 'VK Player (page with description)',
+            be: 'Плэер VK (старонка з апісаннем)'
+        },
+        vkvideo_mode_descr: {
+            ru: 'Основной плеер выбирается в «Настройки → Плеер» (сейчас: {player}). Здесь переключается только запуск в плеере Lampa или в окне VK.',
+            uk: 'Основний плеєр вибирається в «Налаштування → Плеєр» (зараз: {player}). Тут перемикається лише запуск у плеєрі Lampa або у вікні VK.',
+            en: 'Main player is chosen in Settings → Player (current: {player}). This only switches between Lampa player and VK window.',
+            be: 'Асноўны плэер выбіраецца ў «Налады → Плэер» (зараз: {player}). Тут пераключаецца толькі запуск у плэеры Lampa ці ў акне VK.'
+        },
+        vkvideo_player_inner: {
+            ru: 'Встроенный',
+            uk: 'Вбудований',
+            en: 'Built-in',
+            be: 'Убудаваны'
+        },
+        vkvideo_player_android: {
+            ru: 'Android (внешний)',
+            uk: 'Android (зовнішній)',
+            en: 'Android (external)',
+            be: 'Android (знешні)'
+        },
+        vkvideo_quality_name: {
+            ru: 'Приоритетное качество',
+            uk: 'Пріоритетна якість',
+            en: 'Preferred quality',
+            be: 'Прыярытэтная якасць'
+        },
+        vkvideo_quality_descr: {
+            ru: 'Используется для нативного плеера Lampa и внешних плееров (Vimu, Just Player)',
+            uk: 'Використовується для нативного плеєра Lampa та зовнішніх плеєрів (Vimu, Just Player)',
+            en: 'Used for Lampa native player and external players (Vimu, Just Player)',
+            be: 'Выкарыстоўваецца для натыўнага плэера Lampa і знешніх плэераў (Vimu, Just Player)'
+        },
+        vkvideo_quality_auto: {
+            ru: 'Авто (HLS / MP4)',
+            uk: 'Авто (HLS / MP4)',
+            en: 'Auto (HLS / MP4)',
+            be: 'Аўта (HLS / MP4)'
+        },
+        vkvideo_search_shelf: {
+            ru: 'Поиск по VK Видео',
+            uk: 'Пошук у VK Відео',
+            en: 'Search VK Video',
+            be: 'Пошук па VK Відэа'
+        },
+        vkvideo_search_card: {
+            ru: 'Поиск видео',
+            uk: 'Пошук відео',
+            en: 'Search videos',
+            be: 'Пошук відэа'
+        },
+        vkvideo_search_input: {
+            ru: 'Поиск в VK Видео',
+            uk: 'Пошук у VK Відео',
+            en: 'Search in VK Video',
+            be: 'Пошук у VK Відэа'
+        },
+        vkvideo_search_prefix: {
+            ru: 'Поиск: ',
+            uk: 'Пошук: ',
+            en: 'Search: ',
+            be: 'Пошук: '
+        },
+        vkvideo_recommended: {
+            ru: 'Рекомендации',
+            uk: 'Рекомендації',
+            en: 'Recommended',
+            be: 'Рэкамендацыі'
+        },
+        vkvideo_history: {
+            ru: 'История просмотра',
+            uk: 'Історія перегляду',
+            en: 'Watch history',
+            be: 'Гісторыя прагляду'
+        },
+        vkvideo_live: {
+            ru: 'Эфир',
+            uk: 'Ефір',
+            en: 'Live',
+            be: 'Эфір'
+        },
+        vkvideo_watched: {
+            ru: 'Просмотрено',
+            uk: 'Переглянуто',
+            en: 'Watched',
+            be: 'Прагледжана'
+        },
+        vkvideo_watched_done: {
+            ru: '✓ Просмотрено',
+            uk: '✓ Переглянуто',
+            en: '✓ Watched',
+            be: '✓ Прагледжана'
+        },
+        vkvideo_back: {
+            ru: 'Назад',
+            uk: 'Назад',
+            en: 'Back',
+            be: 'Назад'
+        },
+        vkvideo_play_native: {
+            ru: 'Воспроизвести (Плеер)',
+            uk: 'Відтворити (Плеєр)',
+            en: 'Play (Player)',
+            be: 'Прайграць (Плэер)'
+        },
+        vkvideo_show_more_desc: {
+            ru: 'Показать полностью',
+            uk: 'Показати повністю',
+            en: 'Show more',
+            be: 'Паказаць цалкам'
+        },
+        vkvideo_collapse_desc: {
+            ru: 'Свернуть',
+            uk: 'Згорнути',
+            en: 'Show less',
+            be: 'Згарнуць'
+        },
+        vkvideo_show_more: {
+            ru: 'Показать ещё',
+            uk: 'Показати ще',
+            en: 'Load more',
+            be: 'Паказаць яшчэ'
+        },
+        vkvideo_comments: {
+            ru: 'Комментарии',
+            uk: 'Коментарі',
+            en: 'Comments',
+            be: 'Каментарыі'
+        },
+        vkvideo_no_comments: {
+            ru: 'Нет комментариев',
+            uk: 'Немає коментарів',
+            en: 'No comments',
+            be: 'Няма каментарыяў'
+        },
+        vkvideo_comments_closed: {
+            ru: 'Комментарии закрыты',
+            uk: 'Коментарі закриті',
+            en: 'Comments disabled',
+            be: 'Каментарыі закрыты'
+        },
+        vkvideo_comments_error: {
+            ru: 'Не удалось загрузить комментарии',
+            uk: 'Не вдалося завантажити коментарі',
+            en: 'Failed to load comments',
+            be: 'Не ўдалося загрузіць каментарыі'
+        },
+        vkvideo_unavailable: {
+            ru: 'Видео недоступно',
+            uk: 'Відео недоступне',
+            en: 'Video unavailable',
+            be: 'Відэа недаступна'
+        },
+        vkvideo_direct_unavailable: {
+            ru: 'VK Видео: прямой поток недоступен, открыт VK-плеер',
+            uk: 'VK Відео: прямий потік недоступний, відкрито VK-плеєр',
+            en: 'VK Video: direct stream unavailable, opening VK player',
+            be: 'VK Відэа: прамы паток недаступны, адкрыты VK-плэер'
+        },
+        vkvideo_no_connection: {
+            ru: 'Нет связи с VK',
+            uk: 'Немає зв’язку з VK',
+            en: 'No connection to VK',
+            be: 'Няма сувязі з VK'
+        },
+        vkvideo_timeout: {
+            ru: 'VK не отвечает',
+            uk: 'VK не відповідає',
+            en: 'VK is not responding',
+            be: 'VK не адказвае'
+        }
+    };
+
+    function initLang() {
+        if (window.Lampa && Lampa.Lang && typeof Lampa.Lang.add === 'function') {
+            Lampa.Lang.add(LANG);
+        }
+    }
+
+    function tr(key, fallback) {
+        if (window.Lampa && Lampa.Lang && typeof Lampa.Lang.translate === 'function') {
+            var translated = Lampa.Lang.translate(key);
+
+            if (translated && translated !== key) return translated;
+        }
+
+        var lang = 'ru';
+
+        if (window.Lampa && Lampa.Storage) {
+            lang = typeof Lampa.Storage.field === 'function' ? Lampa.Storage.field('language') : Lampa.Storage.get('language', 'ru');
+        }
+
+        lang = String(lang || 'ru').toLowerCase().slice(0, 2);
+
+        var entry = LANG[key];
+
+        if (entry) return entry[lang] || entry.ru || fallback || key;
+
+        return fallback || key;
+    }
+
     function extend(target, source) {
         for (var key in source) target[key] = source[key];
 
@@ -258,11 +481,11 @@
         }, params));
 
         script.onerror = function () {
-            finish(new Error('Нет связи с VK'));
+            finish(new Error(tr('vkvideo_no_connection', 'Нет связи с VK')));
         };
 
         timer = setTimeout(function () {
-            finish(new Error('VK не отвечает'));
+            finish(new Error(tr('vkvideo_timeout', 'VK не отвечает')));
         }, TIMEOUT);
 
         document.head.appendChild(script);
@@ -677,7 +900,7 @@ function pickImage(list, min) {
             if (err) return done(null);
 
             toCards(ids, res, function (cards) {
-                done(toLine('История просмотра', cards, {history: true}));
+                done(toLine(tr('vkvideo_history', 'История просмотра'), cards, {history: true}));
             });
         });
     }
@@ -686,14 +909,14 @@ function pickImage(list, min) {
         var searchCard = {
             id: 'vkvideo_search_trigger',
             is_search: true,
-            title: 'Поиск видео',
+            title: tr('vkvideo_search_card', 'Поиск видео'),
             img: '',
             background: '',
             params: {module: getCardModules()}
         };
 
         done({
-            title: 'Поиск по VK Видео',
+            title: tr('vkvideo_search_shelf', 'Поиск по VK Видео'),
             results: [searchCard],
             total_pages: 1
         });
@@ -789,7 +1012,7 @@ function pickImage(list, min) {
 
     function notify(err) {
         if (window.Lampa && Lampa.Noty) {
-            Lampa.Noty.show(MENU_TITLE + ': ' + (err.message || err));
+            Lampa.Noty.show(tr('vkvideo_title', MENU_TITLE) + ': ' + (err.message || err));
         }
     }
 
@@ -797,14 +1020,14 @@ function pickImage(list, min) {
         if (!window.Lampa || !Lampa.Input) return;
 
         Lampa.Input.edit({
-            title: 'Поиск в VK Видео',
+            title: tr('vkvideo_search_input', 'Поиск в VK Видео'),
             value: '',
             free: true
         }, function (value) {
             if (value && value.trim()) {
                 Lampa.Activity.push({
                     component: 'vkvideo_search',
-                    title: 'Поиск: ' + value.trim(),
+                    title: tr('vkvideo_search_prefix', 'Поиск: ') + value.trim(),
                     query: value.trim(),
                     url: '',
                     page: 1
@@ -834,7 +1057,8 @@ function pickImage(list, min) {
     function getStreamUrl(files, quality, preferMp4) {
         if (!files) return '';
 
-        var num = parseInt(quality, 10);
+        var normQuality = String(quality || 'auto').replace(/^q/, '');
+        var num = parseInt(normQuality, 10);
 
         if (num > 0) {
             var exact = pickMp4(files, num);
@@ -880,7 +1104,8 @@ function pickImage(list, min) {
             }
         });
 
-        var primaryUrl = getStreamUrl(files, prefQuality, preferMp4);
+        var normQuality = String(prefQuality || 'auto').replace(/^q/, '');
+        var primaryUrl = getStreamUrl(files, normQuality, preferMp4);
         var reserveUrl = '';
 
         for (var i = 0; i < candidates.length; i++) {
@@ -1135,13 +1360,18 @@ function pickImage(list, min) {
         }, 4000);
     }
 
+    function getLampaPlayer() {
+        return (window.Lampa && Lampa.Storage && typeof Lampa.Storage.field === 'function') ? String(Lampa.Storage.field('player') || 'inner') : String(Lampa.Storage.get('player', 'inner') || 'inner');
+    }
+
     function playDirect(video) {
-        var quality = Lampa.Storage.get('vkvideo_quality', 'auto');
+        var quality = String(Lampa.Storage.get('vkvideo_quality', 'auto') || 'auto').replace(/^q/, '');
         var vid = video.video_id || video.id;
 
         resolveVideoFiles(video, function (err, files, resolvedVideo) {
             var target = resolvedVideo || video;
-            var preferMp4 = !target.live && !video.live && Lampa.Storage.get('player', 'inner') === 'inner';
+            var lampaPlayer = getLampaPlayer();
+            var preferMp4 = !target.live && !video.live && lampaPlayer === 'inner';
             var qData = files ? buildQualityData(files, quality, preferMp4) : {};
 
             if (qData.url && window.Lampa && Lampa.Player) {
@@ -1170,10 +1400,12 @@ function pickImage(list, min) {
                     };
                 }
 
+                console.log('[VKVideo] playDirect lampa_player=' + lampaPlayer + ' preferMp4=' + preferMp4 + ' quality=' + quality + ' urlType=' + (/\.m3u8/i.test(qData.url) ? 'hls' : 'mp4') + ' reserve=' + (qData.reserveUrl ? (/\.m3u8/i.test(qData.reserveUrl) ? 'hls' : 'mp4') : 'none'));
+
                 Lampa.Player.play(playData);
                 startProgressMonitor(target, resumeSec);
             } else {
-                if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show('VK Видео: прямой поток недоступен, открыт VK-плеер');
+                if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(tr('vkvideo_direct_unavailable', 'VK Видео: прямой поток недоступен, открыт VK-плеер'));
 
                 Lampa.Activity.push({component: 'vkvideo_video', title: video.title, oid: video.owner_id, vid: vid, video: video, url: '', page: 1});
             }
@@ -1182,6 +1414,8 @@ function pickImage(list, min) {
 
     function openVideo(video) {
         var mode = Lampa.Storage.get('vkvideo_player_mode', 'direct');
+
+        console.log('[VKVideo] openVideo mode=' + mode + ' lampa_player=' + getLampaPlayer() + ' quality=' + Lampa.Storage.get('vkvideo_quality', 'auto') + ' id=' + getVideoKey(video));
 
         if (mode === 'direct') {
             playDirect(video);
@@ -1199,7 +1433,7 @@ function openMore(more, title) {
     }
 
     function openCatalog() {
-        Lampa.Activity.push({component: 'vkvideo_main', title: MENU_TITLE, url: '', page: 1});
+        Lampa.Activity.push({component: 'vkvideo_main', title: tr('vkvideo_title', MENU_TITLE), url: '', page: 1});
     }
 
     var CardView = {
@@ -1215,7 +1449,7 @@ function openMore(more, title) {
                     var badge = document.createElement('div');
 
                     badge.className = 'card__vkvideo-badge' + (data.live ? ' card__vkvideo-badge--live' : '');
-                    badge.textContent = data.live ? 'Эфир' : formatDuration(data.duration);
+                    badge.textContent = data.live ? tr('vkvideo_live', 'Эфир') : formatDuration(data.duration);
                     view.appendChild(badge);
                 }
 
@@ -1227,7 +1461,7 @@ function openMore(more, title) {
                         var done = prog.percent >= 95;
 
                         progBadge.className = 'card__vkvideo-progress' + (done ? ' card__vkvideo-progress--done' : '');
-                        progBadge.textContent = done ? '✓ Просмотрено' : ('Просмотрено ' + prog.percent + '%');
+                        progBadge.textContent = done ? tr('vkvideo_watched_done', '✓ Просмотрено') : (tr('vkvideo_watched', 'Просмотрено') + ' ' + prog.percent + '%');
                         view.appendChild(progBadge);
                     }
                 }
@@ -1302,7 +1536,7 @@ function openMore(more, title) {
                         if (!block || !block.videos_ids) return done(null);
 
                         toCards(block.videos_ids, res, function (cards) {
-                            done(toLine('Рекомендации', cards, {section_id: all[0].id}));
+                            done(toLine(tr('vkvideo_recommended', 'Рекомендации'), cards, {section_id: all[0].id}));
                         });
                     }
 
@@ -1716,7 +1950,7 @@ function openMore(more, title) {
                 self.build();
             }
             else {
-                self.scroll.append($('<div class="vkvideo-watch"><div class="vkvideo-watch__note">Видео недоступно</div></div>'));
+                self.scroll.append($('<div class="vkvideo-watch"><div class="vkvideo-watch__note">' + esc(tr('vkvideo_unavailable', 'Видео недоступно')) + '</div></div>'));
             }
 
             self.activity.toggle();
@@ -1738,8 +1972,8 @@ function openMore(more, title) {
         this.body.innerHTML = [
             '<div class="vkvideo-watch__inner">',
             '<div class="vkvideo-watch__buttons">',
-            '<div class="simple-button simple-button--inline selector vkvideo-watch__back"><svg><use xlink:href="#sprite-backward"></use></svg><span>Назад</span></div>',
-            hasDirectStream ? '<div class="simple-button simple-button--inline selector vkvideo-watch__native">' + ICON_PLAY + '<span>Воспроизвести (Плеер)</span></div>' : '',
+            '<div class="simple-button simple-button--inline selector vkvideo-watch__back"><svg><use xlink:href="#sprite-backward"></use></svg><span>' + esc(tr('vkvideo_back', 'Назад')) + '</span></div>',
+            hasDirectStream ? '<div class="simple-button simple-button--inline selector vkvideo-watch__native">' + ICON_PLAY + '<span>' + esc(tr('vkvideo_play_native', 'Воспроизвести (Плеер)')) + '</span></div>' : '',
             '</div>',
             '<div class="vkvideo-watch__player selector"></div>',
             '<div class="vkvideo-watch__body">',
@@ -1749,10 +1983,10 @@ function openMore(more, title) {
                 '<div><div class="vkvideo-watch__channel-name">' + esc(video.channel) + (video.channel_verified ? '<span class="vkvideo-watch__verified">' + ICON_VERIFIED + '</span>' : '') + '</div>' +
                 (sub ? '<div class="vkvideo-watch__channel-sub">' + esc(sub) + '</div>' : '') + '</div></div>' : '',
             desc ? '<div class="vkvideo-watch__desc' + (long ? ' selector' : ' expanded') + '"><div class="vkvideo-watch__desc-text">' + esc(cleanText(desc)) + '</div>' +
-                (long ? '<div class="vkvideo-watch__desc-toggle">Показать полностью</div>' : '') + '</div>' : '',
-            '<div class="vkvideo-watch__comments-head">Комментарии</div>',
+                (long ? '<div class="vkvideo-watch__desc-toggle">' + esc(tr('vkvideo_show_more_desc', 'Показать полностью')) + '</div>' : '') + '</div>' : '',
+            '<div class="vkvideo-watch__comments-head">' + esc(tr('vkvideo_comments', 'Комментарии')) + '</div>',
             '<div class="vkvideo-watch__comments"></div>',
-            '<div class="simple-button selector vkvideo-watch__more hide"><span>Показать ещё</span></div>',
+            '<div class="simple-button selector vkvideo-watch__more hide"><span>' + esc(tr('vkvideo_show_more', 'Показать ещё')) + '</span></div>',
             '</div>',
             '</div>'
         ].join('');
@@ -1807,19 +2041,21 @@ function openMore(more, title) {
 
         if (hasDirectStream) {
             $(this.body.querySelector('.vkvideo-watch__native')).on('hover:enter', function () {
+                if (self.frame) {
+                    try { self.command('pause'); } catch (e) {}
+                    try { self.command('mute'); } catch (e) {}
+                    self.frame.src = 'about:blank';
+                }
+                self.state = 'paused';
                 playDirect(video);
             });
         }
 
         this.last = this.body.querySelector('.vkvideo-watch__native') || this.body.querySelector('.vkvideo-watch__back');
 
-        $(this.last).on('hover:enter', function () {
-            self.command(self.state === 'playing' ? 'pause' : 'play');
-        });
-
         $(this.body.querySelector('.vkvideo-watch__desc.selector')).on('hover:enter', function () {
             $(this).toggleClass('expanded');
-            $(this).find('.vkvideo-watch__desc-toggle').text($(this).hasClass('expanded') ? 'Свернуть' : 'Показать полностью');
+            $(this).find('.vkvideo-watch__desc-toggle').text($(this).hasClass('expanded') ? tr('vkvideo_collapse_desc', 'Свернуть') : tr('vkvideo_show_more_desc', 'Показать полностью'));
         });
 
         $(this.more).on('hover:enter', function () {
@@ -1878,14 +2114,14 @@ function openMore(more, title) {
             if (err || !res) {
                 self.more.classList.add('hide');
 
-                return self.note(err && err.code == 801 ? 'Комментарии закрыты' : 'Не удалось загрузить комментарии');
+                return self.note(err && err.code == 801 ? tr('vkvideo_comments_closed', 'Комментарии закрыты') : tr('vkvideo_comments_error', 'Не удалось загрузить комментарии'));
             }
 
             var nodes = [];
             var items = (res && res.items) || [];
 
             self.comments_total = res.current_level_count || res.count || 0;
-            self.head.innerHTML = 'Комментарии' + (res.count ? '<span>' + esc(Number(res.count).toLocaleString('ru-RU')) + '</span>' : '');
+            self.head.innerHTML = esc(tr('vkvideo_comments', 'Комментарии')) + (res.count ? '<span>' + esc(Number(res.count).toLocaleString('ru-RU')) + '</span>' : '');
 
             items.forEach(function (comment) {
                 var text = cleanText(comment.text);
@@ -1904,7 +2140,7 @@ function openMore(more, title) {
 
             self.comments_offset += items.length;
 
-            if (!self.comments_offset) self.note('Комментариев пока нет');
+            if (!self.comments_offset) self.note(tr('vkvideo_no_comments', 'Нет комментариев'));
 
             self.more.classList.toggle('hide', !items.length || self.comments_offset >= self.comments_total);
 
@@ -1949,7 +2185,9 @@ function openMore(more, title) {
     };
 
     WatchPage.prototype.pause = function () {
-        this.command('pause');
+        if (this.frame) {
+            try { this.command('pause'); } catch (e) {}
+        }
     };
 
     WatchPage.prototype.stop = function () {};
@@ -1973,21 +2211,23 @@ function openMore(more, title) {
     };
 
     function addMenu() {
+        var title = tr('vkvideo_title', MENU_TITLE);
         var sort = Lampa.Storage.get('menu_sort', []);
 
-        if (sort.indexOf(MENU_TITLE) < 0) {
-            sort.unshift(MENU_TITLE);
+        if (sort.indexOf(title) < 0) {
+            sort.unshift(title);
             Lampa.Storage.set('menu_sort', sort);
         }
 
-        Lampa.Menu.addButton(ICON_MENU, MENU_TITLE, openCatalog);
+        Lampa.Menu.addButton(ICON_MENU, title, openCatalog);
     }
 
-            function addSearchSource() {
+    function addSearchSource() {
         if (!window.Lampa || !Lampa.Search || !Lampa.Search.addSource) return;
 
+        var title = tr('vkvideo_title', MENU_TITLE);
         var searchSource = {
-            title: MENU_TITLE,
+            title: title,
             search: function (params, oncomplite) {
                 var queryStr = (params.query || '').trim();
 
@@ -2000,7 +2240,7 @@ function openMore(more, title) {
                         if (!cards.length) return oncomplite([]);
 
                         oncomplite([{
-                            title: MENU_TITLE,
+                            title: title,
                             results: cards,
                             total: cards.length,
                             total_pages: 1
@@ -2017,15 +2257,43 @@ function openMore(more, title) {
         Lampa.Search.addSource(searchSource);
     }
 
+    function getLampaPlayerLabel() {
+        var p = getLampaPlayer();
+
+        if (p === 'inner') return tr('vkvideo_player_inner', 'Встроенный');
+        if (p === 'android') return tr('vkvideo_player_android', 'Android (внешний)');
+        if (p === 'vlc') return 'VLC';
+        return p;
+    }
+
+    function playerModeDescription() {
+        return tr('vkvideo_mode_descr', 'Основной плеер выбирается в «Настройки → Плеер» (сейчас: {player}). Здесь переключается только запуск в плеере Lampa или в окне VK.').replace('{player}', getLampaPlayerLabel());
+    }
+
     function addSettings() {
         if (!window.Lampa || !Lampa.SettingsApi) return;
 
         // Удаляем устаревший параметр лимита карточек из памяти
         try { Lampa.Storage.remove('vkvideo_items_limit'); } catch (e) {}
 
+        // Авто-миграция числовых значений качества на строковые ключи
+        try {
+            var legacyQualityMap = {
+                '1080': 'q1080',
+                '720': 'q720',
+                '480': 'q480',
+                '360': 'q360'
+            };
+            var currentQuality = String(Lampa.Storage.get('vkvideo_quality', 'auto'));
+
+            if (legacyQualityMap[currentQuality]) {
+                Lampa.Storage.set('vkvideo_quality', legacyQualityMap[currentQuality]);
+            }
+        } catch (e) {}
+
         Lampa.SettingsApi.addComponent({
             component: 'vkvideo',
-            name: MENU_TITLE,
+            name: tr('vkvideo_title', MENU_TITLE),
             icon: ICON_MENU
         });
 
@@ -2035,14 +2303,21 @@ function openMore(more, title) {
                 name: 'vkvideo_player_mode',
                 type: 'select',
                 values: {
-                    direct: 'Сразу плеер (нативный / внешний)',
-                    watch: 'Страница видео (с описанием)'
+                    direct: tr('vkvideo_mode_direct', 'Плеер Lampa (из Настройки → Плеер)'),
+                    watch: tr('vkvideo_mode_watch', 'Плеер VK (страница с описанием)')
                 },
                 default: 'direct'
             },
             field: {
-                name: 'Режим запуска',
-                description: 'Запускать сразу в нативном / внешнем плеере или открывать страницу с описанием'
+                name: tr('vkvideo_player_mode_name', 'Плеер для VK Видео'),
+                description: playerModeDescription()
+            },
+            onRender: function (item) {
+                if (item && item.find) {
+                    var descr = item.find('.settings-param__descr');
+
+                    if (descr.length) descr.text(playerModeDescription());
+                }
             }
         });
 
@@ -2052,17 +2327,17 @@ function openMore(more, title) {
                 name: 'vkvideo_quality',
                 type: 'select',
                 values: {
-                    auto: 'Авто (HLS)',
-                    1080: '1080p (Full HD)',
-                    720: '720p (HD)',
-                    480: '480p (SD)',
-                    360: '360p'
+                    auto: tr('vkvideo_quality_auto', 'Авто (HLS / MP4)'),
+                    q1080: '1080p (Full HD)',
+                    q720: '720p (HD)',
+                    q480: '480p (SD)',
+                    q360: '360p'
                 },
                 default: 'auto'
             },
             field: {
-                name: 'Приоритетное качество',
-                description: 'Используется для нативного плеера Lampa и внешних плееров (Vimu, Just Player)'
+                name: tr('vkvideo_quality_name', 'Приоритетное качество'),
+                description: tr('vkvideo_quality_descr', 'Используется для нативного плеера Lampa и внешних плееров (Vimu, Just Player)')
             }
         });
     }
@@ -2080,6 +2355,8 @@ function routeHistory() {
     }
 
     function init() {
+        initLang();
+
         var style = document.createElement('style');
 
         style.textContent = STYLE;
