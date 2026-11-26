@@ -589,7 +589,19 @@
             }, 4500);
 
             try {
-                window.Android.httpReq({url: directUrl, timeout: 4000}, {
+                if (window.Lampa && typeof Lampa.Reguest === 'function') {
+                    var net = new Lampa.Reguest();
+                    net.timeout(4000);
+                    net.native(directUrl, function (res) {
+                        step(parse(res));
+                    }, function () {
+                        step(null);
+                    }, false, {dataType: 'text'});
+                    return;
+                }
+                var bridge = (window.Android && window.Android.httpReq) ? window.Android : ((window.AndroidJS && window.AndroidJS.httpReq) ? window.AndroidJS : null);
+                if (!bridge) return step(null);
+                bridge.httpReq({url: directUrl, timeout: 4000}, {
                     complite: function (res) {
                         step(parse(res));
                     },
@@ -613,7 +625,7 @@
         var steps = [];
         var androidWV = location.protocol === 'http:' && /Android/i.test(navigator.userAgent);
 
-        if (window.Android && window.Android.httpReq) steps.push(viaAndroid);
+        if ((window.Android && window.Android.httpReq) || (window.AndroidJS && window.AndroidJS.httpReq) || (isTvOrAndroid() && window.Lampa && typeof Lampa.Reguest === 'function')) steps.push(viaAndroid);
         steps.push(viaFallback);
         if (!androidWV) steps.push(viaDirect);
 
@@ -674,6 +686,39 @@
         }, wait);
     }
 
+    // Нативный HTTP-запрос на Android/TV без ?callback= (иначе VK вырезает files.hls_live на JSONP)
+    function apiTransport(method, params, callback) {
+        if (isTvOrAndroid() && window.Lampa && typeof Lampa.Reguest === 'function') {
+            var url = API_URL + method + '?' + query(extend({
+                v: API_VERSION,
+                client_id: CLIENT_ID,
+                lang: 'ru'
+            }, params));
+            var done = false;
+
+            try {
+                var net = new Lampa.Reguest();
+                net.timeout(TIMEOUT);
+                net.native(url, function (raw) {
+                    if (done) return;
+                    done = true;
+                    try {
+                        var parsed = typeof raw === 'object' ? raw : JSON.parse(raw);
+                        if (parsed) return callback(null, parsed);
+                    } catch (e) {}
+                    jsonp(method, params, callback);
+                }, function () {
+                    if (done) return;
+                    done = true;
+                    jsonp(method, params, callback);
+                }, false, {dataType: 'text'});
+                return;
+            } catch (e) {}
+        }
+
+        jsonp(method, params, callback);
+    }
+
     // Вызовы VK API с автоматическим обновлением протухшего токена
     function api(method, params, callback) {
         var direct = method.indexOf('catalog.') === 0;
@@ -685,7 +730,7 @@
                 if (err) return callback(err);
 
                 enqueueApi(function (releaseQueue) {
-                    jsonp(name, extend({access_token: token}, args), function (err, data) {
+                    apiTransport(name, extend({access_token: token}, args), function (err, data) {
                         releaseQueue();
 
                         if (err) return callback(err);
