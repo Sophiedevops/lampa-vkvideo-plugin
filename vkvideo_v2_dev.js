@@ -1374,7 +1374,6 @@ function pickImage(list, min) {
     function isTvOrAndroid() {
         if (window.Lampa) {
             if (Lampa.Platform) {
-                if (typeof Lampa.Platform.tv === 'function' && Lampa.Platform.tv()) return true;
                 if (typeof Lampa.Platform.get === 'function') {
                     var pf = String(Lampa.Platform.get() || '');
                     if (pf === 'android' || pf === 'tizen' || pf === 'webos' || pf === 'orsay' || pf === 'netcast' || pf === 'apple_tv') return true;
@@ -1384,7 +1383,6 @@ function pickImage(list, min) {
                     Lampa.Platform.is('webos') || Lampa.Platform.is('orsay') ||
                     Lampa.Platform.is('netcast') || Lampa.Platform.is('apple_tv')
                 )) return true;
-                if (typeof Lampa.Platform.screen === 'function' && Lampa.Platform.screen('tv')) return true;
             }
             if (Lampa.Storage && typeof Lampa.Storage.get === 'function') {
                 var sp = String(Lampa.Storage.get('platform', '') || '');
