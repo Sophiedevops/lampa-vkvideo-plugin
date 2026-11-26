@@ -751,9 +751,14 @@ function pickImage(list, min) {
         return card_modules;
     }
 
+    function getHlsUrl(files) {
+        if (!files) return '';
+        return files.hls || files.hls_live || files.hls_live_ondemand || files.hls_live_playback || '';
+    }
+
     function hasPlayableFiles(files) {
         if (!files) return false;
-        if (files.hls) return true;
+        if (getHlsUrl(files)) return true;
 
         for (var key in files) {
             if (key.indexOf('mp4_') === 0 && files[key]) return true;
@@ -1081,7 +1086,7 @@ function pickImage(list, min) {
             if (best) return best;
         }
 
-        return files.hls || files.mp4_2160 || files.mp4_1440 || files.mp4_1080 || files.mp4_720 || files.mp4_480 || files.mp4_360 || files.mp4_240 || files.mp4_144 || '';
+        return getHlsUrl(files) || files.mp4_2160 || files.mp4_1440 || files.mp4_1080 || files.mp4_720 || files.mp4_480 || files.mp4_360 || files.mp4_240 || files.mp4_144 || '';
     }
 
     function buildQualityData(files, prefQuality, preferMp4) {
@@ -1090,9 +1095,11 @@ function pickImage(list, min) {
 
         if (!files) return {url: '', qualityMap: qualityMap, reserveUrl: ''};
 
-        if (files.hls) {
-            qualityMap['Авто (HLS)'] = files.hls;
-            candidates.push(files.hls);
+        var hlsUrl = getHlsUrl(files);
+
+        if (hlsUrl) {
+            qualityMap['Авто (HLS)'] = hlsUrl;
+            candidates.push(hlsUrl);
         }
 
         var resolutions = [
