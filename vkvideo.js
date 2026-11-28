@@ -389,11 +389,38 @@
     }
 
     function esc(value) {
-        return String(value == null ? '' : value)
+        if (value === null || typeof value === 'undefined') return '';
+
+        return String(value)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/`/g, '&#96;');
+    }
+
+    function safeHttpUrl(url) {
+        if (url === null || typeof url === 'undefined') return '';
+
+        var s = String(url).trim();
+
+        if (!/^https?:\/\//i.test(s)) return '';
+        if (/[\s'"()<>`\\\u0000-\u001F\u007F]/.test(s)) return '';
+
+        return s;
+    }
+
+    function isTrustedVkPlayerUrl(url) {
+        if (url === null || typeof url === 'undefined') return false;
+
+        return /^https:\/\/(?:[a-z0-9-]+\.)?(?:vkvideo\.ru|vk\.com)\/video_ext\.php(?:[?#]|$)/i.test(String(url).trim());
+    }
+
+    function extractTrustedOrigin(url) {
+        var m = String(url || '').trim().match(/^(https:\/\/(?:[a-z0-9-]+\.)?(?:vkvideo\.ru|vk\.com))(?:\/|$)/i);
+
+        return m ? m[1].toLowerCase() : PLAYER_ORIGIN;
     }
 
     function plural(n, one, few, many) {
@@ -687,6 +714,7 @@
     }
 
     // Нативный HTTP-запрос на Android/TV без ?callback= (иначе VK вырезает files.hls_live на JSONP)
+    // БЕЗ fallback на jsonp() на Android/TV — защита от RCE через вредоносный JS-ответ оператора (0% RCE на Android/TV)
     function apiTransport(method, params, callback) {
         if (isTvOrAndroid() && window.Lampa && typeof Lampa.Reguest === 'function') {
             var url = API_URL + method + '?' + query(extend({
@@ -696,6 +724,10 @@
             }, params));
             var done = false;
 
+            function failNative() {
+                callback(new Error(tr('vkvideo_no_connection', 'Нет связи с VK')));
+            }
+
             try {
                 var net = new Lampa.Reguest();
                 net.timeout(TIMEOUT);
@@ -704,16 +736,19 @@
                     done = true;
                     try {
                         var parsed = typeof raw === 'object' ? raw : JSON.parse(raw);
-                        if (parsed) return callback(null, parsed);
+                        if (parsed && typeof parsed === 'object') return callback(null, parsed);
                     } catch (e) {}
-                    jsonp(method, params, callback);
+                    failNative();
                 }, function () {
                     if (done) return;
                     done = true;
-                    jsonp(method, params, callback);
+                    failNative();
                 }, false, {dataType: 'text'});
                 return;
-            } catch (e) {}
+            } catch (e) {
+                failNative();
+                return;
+            }
         }
 
         jsonp(method, params, callback);
@@ -1528,10 +1563,11 @@ function pickImage(list, min) {
         Lampa.PlayerVideo.registerTube({
             name: 'VKVideo',
             verify: function (src) {
-                return typeof src === 'string' && (src.indexOf('vkvideo.ru/video_ext.php') >= 0 || src.indexOf('vk.com/video_ext.php') >= 0);
+                return isTrustedVkPlayerUrl(src);
             },
             create: function (call_video) {
                 var stream_url = '';
+                var frameOrigin = PLAYER_ORIGIN;
                 var object = $('<div class="player-video__youtube"><div class="player-video__youtube-player" style="width:100%;height:100%;"></div></div>');
                 var video = object[0];
                 var listener = Lampa.Subscribe();
@@ -1559,7 +1595,7 @@ function pickImage(list, min) {
                         }
                     }
                     try {
-                        frameWindow.postMessage(JSON.stringify(payload), '*');
+                        frameWindow.postMessage(JSON.stringify(payload), frameOrigin);
                     } catch (e) {}
                 }
 
@@ -1602,6 +1638,7 @@ function pickImage(list, min) {
 
                 function onMessage(event) {
                     if (!event || !event.data) return;
+                    if (!/^https:\/\/(?:[a-z0-9-]+\.)?(?:vkvideo\.ru|vk\.com)$/i.test(String(event.origin || ''))) return;
                     if (frame && event.source && event.source !== frame.contentWindow) return;
 
                     var msg = event.data;
@@ -1657,7 +1694,10 @@ function pickImage(list, min) {
 
                 Object.defineProperty(video, 'src', {
                     set: function (url) {
-                        if (url) stream_url = String(url);
+                        if (url && isTrustedVkPlayerUrl(url)) {
+                            stream_url = String(url).trim();
+                            frameOrigin = extractTrustedOrigin(stream_url);
+                        }
                     },
                     get: function () {
                         return stream_url;
@@ -2475,7 +2515,10 @@ function openMore(more, title) {
     }
 
     function avatar(className, url) {
-        return '<div class="' + className + '"' + (url ? ' style="background-image: url(\'' + esc(url) + '\')"' : '') + '></div>';
+        var safe = safeHttpUrl(url);
+        var cls = esc(className);
+
+        return '<div class="' + cls + '"' + (safe ? ' style="background-image: url(\'' + esc(safe) + '\')"' : '') + '></div>';
     }
 
     function WatchPage(object) {
@@ -2566,7 +2609,7 @@ function openMore(more, title) {
         this.list = this.body.querySelector('.vkvideo-watch__comments');
         this.more = this.body.querySelector('.vkvideo-watch__more');
 
-        if (video.player) {
+        if (video.player && isTrustedVkPlayerUrl(video.player)) {
             this.frame = document.createElement('iframe');
             this.frame.src = video.player + (video.player.indexOf('?') < 0 ? '?' : '&') + EMBED_PARAMS;
             this.frame.setAttribute('allow', 'autoplay; fullscreen; encrypted-media');
@@ -2800,18 +2843,28 @@ function openMore(more, title) {
         if (!window.Lampa || !Lampa.Search || !Lampa.Search.addSource) return;
 
         var title = tr('vkvideo_title', MENU_TITLE);
+        var active_search_id = 0;
         var searchSource = {
             title: title,
+            params: {
+                save: true,
+                lazy: true,
+                start_typing: tr('vkvideo_search_hint', 'Введите запрос для поиска в VK Видео'),
+                nofound: tr('vkvideo_search_empty', 'Ничего не найдено')
+            },
             search: function (params, oncomplite) {
-                var queryStr = (params.query || '').trim();
+                var queryStr = (params && params.query ? String(params.query) : '').trim();
+                var reqId = ++active_search_id;
 
                 if (!queryStr) return oncomplite([]);
 
                 api('catalog.getVideoSearch', {q: queryStr, need_blocks: 1}, function (err, res) {
+                    if (reqId !== active_search_id) return;
                     if (err || !res) return oncomplite([]);
 
                     toCards(null, res, function (cards) {
-                        if (!cards.length) return oncomplite([]);
+                        if (reqId !== active_search_id) return;
+                        if (!cards || !cards.length) return oncomplite([]);
 
                         oncomplite([{
                             title: title,
@@ -2822,9 +2875,16 @@ function openMore(more, title) {
                     });
                 });
             },
+            onCancel: function () {
+                active_search_id++;
+            },
+            onMore: function (params, close) {
+                if (close) close();
+            },
+            onBack: function () {},
             onSelect: function (params, close) {
                 if (close) close();
-                openVideo(params.element);
+                if (params && params.element) openVideo(params.element);
             }
         };
 
