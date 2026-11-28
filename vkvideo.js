@@ -47,7 +47,7 @@
     var API_URL = 'https://api.vkvideo.ru/method/';
     var CATALOG_URL = 'https://vkvideo.ru/';
     var PLAYER_ORIGIN = 'https://vkvideo.ru';
-    var EMBED_PARAMS = 'partner_name=lampa&js_api=1';
+    var EMBED_PARAMS = 'partner_name=lampa&js_api=1&mute=0';
     var MENU_TITLE = 'VK Видео';
     var TOKEN_KEY = 'vkvideo_token';
     // Токен живёт сутки. Если осталось меньше часа — обновляем
@@ -1596,19 +1596,18 @@ function pickImage(list, min) {
                             payload[k] = extra[k];
                         }
                     }
-                    var msgStr = JSON.stringify(payload);
                     if (confirmedOrigin) {
-                        try { frameWindow.postMessage(msgStr, confirmedOrigin); } catch (e) {}
+                        try { frameWindow.postMessage(payload, confirmedOrigin); } catch (e) {}
                         return;
                     }
                     for (var i = 0; i < TRUSTED_ORIGINS.length; i++) {
-                        try { frameWindow.postMessage(msgStr, TRUSTED_ORIGINS[i]); } catch (e) {}
+                        try { frameWindow.postMessage(payload, TRUSTED_ORIGINS[i]); } catch (e) {}
                     }
                 }
 
                 function unmuteAndPlay() {
                     postCmd('unmute');
-                    postCmd('set_volume', {value: 1});
+                    postCmd('set_volume', {volume: 1});
                     postCmd('play');
                 }
 
@@ -1622,11 +1621,11 @@ function pickImage(list, min) {
                     unmuteAndPlay();
                     unmuteTimer1 = setTimeout(function () {
                         postCmd('unmute');
-                        postCmd('set_volume', {value: 1});
+                        postCmd('set_volume', {volume: 1});
                     }, 600);
                     unmuteTimer2 = setTimeout(function () {
                         postCmd('unmute');
-                        postCmd('set_volume', {value: 1});
+                        postCmd('set_volume', {volume: 1});
                     }, 1500);
                     if (seekPending > 0) {
                         var s = seekPending;
@@ -1762,7 +1761,7 @@ function pickImage(list, min) {
                 Object.defineProperty(video, 'volume', {
                     set: function (num) {
                         var v = Math.max(0, Math.min(1, Number(num) || 1));
-                        postCmd('set_volume', {value: v});
+                        postCmd('set_volume', {volume: v});
                     },
                     get: function () { return 1; }
                 });
@@ -1784,7 +1783,10 @@ function pickImage(list, min) {
 
                     frame = document.createElement('iframe');
                     frame.className = 'player-video__youtube-bridge-frame';
-                    frame.src = stream_url + (stream_url.indexOf('autoplay=') < 0 ? (stream_url.indexOf('?') < 0 ? '?' : '&') + 'autoplay=1' : '');
+                    var iframeUrl = stream_url;
+                    if (iframeUrl.indexOf('autoplay=') < 0) iframeUrl += (iframeUrl.indexOf('?') < 0 ? '?' : '&') + 'autoplay=1';
+                    if (iframeUrl.indexOf('mute=') < 0) iframeUrl += (iframeUrl.indexOf('?') < 0 ? '?' : '&') + 'mute=0';
+                    frame.src = iframeUrl;
                     frame.setAttribute('frameborder', '0');
                     frame.setAttribute('allowfullscreen', 'true');
                     frame.setAttribute('allow', 'autoplay; fullscreen; encrypted-media');
@@ -2650,7 +2652,7 @@ function openMore(more, title) {
             if (data.event === 'inited' && !self.autoplayed) {
                 self.autoplayed = true;
                 self.command('unmute');
-                self.command('set_volume', {value: 1});
+                self.command('set_volume', {volume: 1});
                 self.command('play');
             }
 
