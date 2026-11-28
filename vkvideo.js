@@ -1568,6 +1568,8 @@ function pickImage(list, min) {
             create: function (call_video) {
                 var stream_url = '';
                 var frameOrigin = PLAYER_ORIGIN;
+                var confirmedOrigin = '';
+                var TRUSTED_ORIGINS = ['https://vkvideo.ru', 'https://vk.com'];
                 var object = $('<div class="player-video__youtube"><div class="player-video__youtube-player" style="width:100%;height:100%;"></div></div>');
                 var video = object[0];
                 var listener = Lampa.Subscribe();
@@ -1594,9 +1596,14 @@ function pickImage(list, min) {
                             payload[k] = extra[k];
                         }
                     }
-                    try {
-                        frameWindow.postMessage(JSON.stringify(payload), frameOrigin);
-                    } catch (e) {}
+                    var msgStr = JSON.stringify(payload);
+                    if (confirmedOrigin) {
+                        try { frameWindow.postMessage(msgStr, confirmedOrigin); } catch (e) {}
+                        return;
+                    }
+                    for (var i = 0; i < TRUSTED_ORIGINS.length; i++) {
+                        try { frameWindow.postMessage(msgStr, TRUSTED_ORIGINS[i]); } catch (e) {}
+                    }
                 }
 
                 function unmuteAndPlay() {
@@ -1640,6 +1647,8 @@ function pickImage(list, min) {
                     if (!event || !event.data) return;
                     if (!/^https:\/\/(?:[a-z0-9-]+\.)?(?:vkvideo\.ru|vk\.com)$/i.test(String(event.origin || ''))) return;
                     if (frame && event.source && event.source !== frame.contentWindow) return;
+                    confirmedOrigin = event.origin;
+                    frameOrigin = event.origin;
 
                     var msg = event.data;
                     if (typeof msg === 'string') {
@@ -2610,6 +2619,8 @@ function openMore(more, title) {
         this.more = this.body.querySelector('.vkvideo-watch__more');
 
         if (video.player && isTrustedVkPlayerUrl(video.player)) {
+            this.frameOrigin = extractTrustedOrigin(video.player);
+            this.confirmedOrigin = '';
             this.frame = document.createElement('iframe');
             this.frame.src = video.player + (video.player.indexOf('?') < 0 ? '?' : '&') + EMBED_PARAMS;
             this.frame.setAttribute('allow', 'autoplay; fullscreen; encrypted-media');
@@ -2617,7 +2628,9 @@ function openMore(more, title) {
         }
 
         this.onMessage = function (e) {
-            if (e.origin !== PLAYER_ORIGIN || !self.frame || e.source !== self.frame.contentWindow) return;
+            if (!/^https:\/\/(?:[a-z0-9-]+\.)?(?:vkvideo\.ru|vk\.com)$/i.test(String(e.origin || '')) || !self.frame || e.source !== self.frame.contentWindow) return;
+            self.confirmedOrigin = e.origin;
+            self.frameOrigin = e.origin;
 
             var data = e.data;
 
@@ -2636,6 +2649,8 @@ function openMore(more, title) {
 
             if (data.event === 'inited' && !self.autoplayed) {
                 self.autoplayed = true;
+                self.command('unmute');
+                self.command('set_volume', {value: 1});
                 self.command('play');
             }
 
@@ -2680,8 +2695,22 @@ function openMore(more, title) {
         this.loadComments();
     };
 
-    WatchPage.prototype.command = function (method) {
-        if (this.frame && this.frame.contentWindow) this.frame.contentWindow.postMessage({method: method}, PLAYER_ORIGIN);
+    WatchPage.prototype.command = function (method, extra) {
+        if (!this.frame || !this.frame.contentWindow) return;
+        var payload = {method: method};
+        if (extra) {
+            for (var k in extra) {
+                payload[k] = extra[k];
+            }
+        }
+        if (this.confirmedOrigin) {
+            try { this.frame.contentWindow.postMessage(payload, this.confirmedOrigin); } catch (e) {}
+            return;
+        }
+        var origins = ['https://vkvideo.ru', 'https://vk.com'];
+        for (var i = 0; i < origins.length; i++) {
+            try { this.frame.contentWindow.postMessage(payload, origins[i]); } catch (e) {}
+        }
     };
 
     WatchPage.prototype.bindFocus = function (nodes) {
@@ -2854,6 +2883,8 @@ function openMore(more, title) {
             },
             search: function (params, oncomplite) {
                 var queryStr = (params && params.query ? String(params.query) : '').trim();
+                try { queryStr = decodeURIComponent(queryStr); } catch (e) {}
+                queryStr = queryStr.trim();
                 var reqId = ++active_search_id;
 
                 if (!queryStr) return oncomplite([]);
